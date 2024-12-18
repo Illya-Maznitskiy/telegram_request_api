@@ -32,7 +32,7 @@ pip install -r requirements.txt
 ## Access
 - To run the server use the command:
 ```bash
-python runserver
+uvicorn main:app --reload
 ```
 
 ## API Endpoints
