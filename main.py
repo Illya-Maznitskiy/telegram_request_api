@@ -70,7 +70,9 @@ def get_db():
 # Utility functions
 def authenticate_user(db, username: str, password: str):
     user = db.query(User).filter(User.username == username).first()
-    if user and user.hashed_password == password:  # Replace with secure hashing
+    if (
+        user and user.hashed_password == password
+    ):  # Replace with secure hashing
         return user
     return None
 
@@ -87,7 +89,10 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 # Routes
 @app.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: SessionLocal = Depends(get_db)):
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: SessionLocal = Depends(get_db),
+):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -96,7 +101,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: SessionLoc
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -107,6 +114,11 @@ async def get_requests(db: SessionLocal = Depends(get_db)):
 
 
 @app.post("/requests", dependencies=[Depends(oauth2_scheme)])
-async def create_request(bottoken: str, chatid: str, message: str, db: SessionLocal = Depends(get_db)):
+async def create_request(
+    bottoken: str,
+    chatid: str,
+    message: str,
+    db: SessionLocal = Depends(get_db),
+):
     # Save request to the database and send to Telegram
     return {"message": "Request received and processed"}
