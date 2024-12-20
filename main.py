@@ -1,13 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Text
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from jose import JWTError, jwt
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from typing import List
+from jose import JWTError, jwt
+
+# Importing models from models.py
+from .models import Role, User, Request, Log
+from .database import SessionLocal
 
 # Constants
-DATABASE_URL = "postgresql://user:password@localhost:5432/fastapi_db"
+DATABASE_URL = (
+    "postgresql://admin_user:admin_password@localhost:5432/fastapi_project_db"
+)
 SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -15,47 +19,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # FastAPI app instance
 app = FastAPI()
 
-# Database setup
-Base = declarative_base()
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 # OAuth2 for JWT
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-# Models
-class Role(Base):
-    __tablename__ = "roles"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    role_id = Column(Integer, ForeignKey("roles.id"))
-    role = relationship("Role")
-
-
-class Request(Base):
-    __tablename__ = "requests"
-    id = Column(Integer, primary_key=True, index=True)
-    bottoken = Column(String, nullable=False)
-    chatid = Column(String, nullable=False)
-    message = Column(Text, nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User")
-
-
-class Log(Base):
-    __tablename__ = "logs"
-    id = Column(Integer, primary_key=True, index=True)
-    response = Column(Text, nullable=False)
-    request_id = Column(Integer, ForeignKey("requests.id"))
-    request = relationship("Request")
 
 
 # Dependency
@@ -87,11 +52,41 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+# Script to create admin user on startup
+@app.on_event("startup")
+async def create_admin_user():
+    db = SessionLocal()
+    admin_role = db.query(Role).filter(Role.name == "Admin").first()
+    if not admin_role:
+        # Create Admin role if it doesn't exist
+        admin_role = Role(name="Admin")
+        db.add(admin_role)
+        db.commit()
+        db.refresh(admin_role)
+
+    # Check if admin user exists
+    admin_user = db.query(User).filter(User.username == "admin").first()
+    if not admin_user:
+        # Create admin user if it doesn't exist
+        hashed_password = (
+            "adminpassword"  # Replace with a secure hash for production
+        )
+        admin_user = User(
+            username="admin",
+            hashed_password=hashed_password,
+            role_id=admin_role.id,
+        )
+        db.add(admin_user)
+        db.commit()
+        db.refresh(admin_user)
+    db.close()
+
+
 # Routes
 @app.post("/token")
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: SessionLocal = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -108,7 +103,7 @@ async def login(
 
 
 @app.get("/requests", dependencies=[Depends(oauth2_scheme)])
-async def get_requests(db: SessionLocal = Depends(get_db)):
+async def get_requests(db: Session = Depends(get_db)):
     # Implement role-based filtering
     return {"message": "Role-based access control here"}
 
@@ -118,7 +113,7 @@ async def create_request(
     bottoken: str,
     chatid: str,
     message: str,
-    db: SessionLocal = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     # Save request to the database and send to Telegram
     return {"message": "Request received and processed"}
