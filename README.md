@@ -67,7 +67,7 @@ uvicorn main:app --reload
 ```
 
 ## API Endpoints
-You can check and test the endpoints with [Postman](https://www.postman.com/maintenance-participant-45803664/telegram-request-api/collection/b0ppt3k/fastapi-app-endpoints)
+You can check and test the endpoints with URL [http://127.0.0.1:8000/docs/](http://127.0.0.1:8000/docs/)
 
 
 ## Screenshots:
