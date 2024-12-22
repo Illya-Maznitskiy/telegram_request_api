@@ -5,14 +5,32 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from jose import jwt
 from passlib.context import CryptContext
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
+)
+from dotenv import load_dotenv
+import os
+
 
 from models import Role, User, Request
 from database import SessionLocal
 
+
+load_dotenv()
+
+
 # Constants
-SECRET_KEY = "83daa0256a2289b0fb23693bf1f6034d44396675749244721a2b20e896e11662"
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+BOT_USERNAME = "@request_api_telegram_bot"
+
 
 # FastAPI app instance
 app = FastAPI()
@@ -158,3 +176,62 @@ async def create_request(
     db.commit()
     db.refresh(new_request)
     return {"message": "Request received and processed"}
+
+
+# Telegram Bot Functions
+
+
+def handle_response(text: str) -> str:
+    if "hello" in text.lower():
+        return "Hello! How can I help you today?"
+    elif "help" in text.lower():
+        return "Please ask me anything, I am here to help!"
+    else:
+        return "I'm sorry, I didn't understand that."
+
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Hello! Thanks for chatting with me! I am a API bot!"
+    )
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "I am a FastAPI bot! I process JSON requests."
+    )
+
+
+async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("This is a custom command!")
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message_type: str = update.message.chat.type
+    text: str = update.message.text
+
+    print(f'User {update.message.chat.id} in {message_type}: "{text}"')
+
+    response: str = handle_response(text)
+
+    print("Bot:", response)
+    await update.message.reply_text(response)
+
+
+if __name__ == "__main__":
+    print("Starting bot...")
+    application = Application.builder().token(TOKEN).build()
+
+    # Add handlers for bot commands
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("custom", custom_command))
+
+    # Add handler for messages
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    )
+
+    # Run the bot
+    print("Polling...")
+    application.run_polling(poll_interval=3)
