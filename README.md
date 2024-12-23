@@ -122,6 +122,27 @@ This section explains how to set up and use Telegram API in your project.
 Now you're ready to interact with the Telegram API using your bot in the FastAPI service!
 
 
+# Test Requests
+
+Follow these steps to test the Telegram Bot requests:
+
+1. **Run the Server**  
+   Start the FastAPI application:  
+   ```bash
+   python main.py
+   ```
+
+2. **Create a Request**  
+   Open [http://127.0.0.1:8000/docs/](http://127.0.0.1:8000/docs/)
+   Send a POST request to `/requests` with the required fields:  
+   - `bottoken`  
+   - `chatid`
+   - `message`  
+
+3. **View Requests**  
+   Use a GET request at `/requests` to see all saved requests.
+
+
 # Screenshots:
 
 ## Authorization and Authentication
@@ -146,3 +167,12 @@ Now you're ready to interact with the Telegram API using your bot in the FastAPI
 
 ### Add Token to Project
 ![Add Token](screenshots/add_token.png)
+
+
+## Test Requests
+
+### Send Request
+![Send Request](screenshots/send_request.png)
+
+### View Requests
+![View Requests](screenshots/view_requests.png)
