@@ -290,14 +290,33 @@ async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_type: str = update.message.chat.type
-    text: str = update.message.text
+    # Extract message details
+    chat_id = update.message.chat.id
+    text = update.message.text
 
-    print(f'User {update.message.chat.id} in {message_type}: "{text}"')
+    # Print the received message for debugging
+    print(f'User {chat_id} sent: "{text}"')
 
-    response: str = handle_response(text)
+    # Save the message to the database
+    db = next(get_db())  # Get the database session
+    new_request = Request(
+        bottoken=os.getenv("TELEGRAM_TOKEN"),  # Use your bot token
+        chatid=str(chat_id),  # Store chat ID as a string
+        message=text,
+    )
 
-    print("Bot:", response)
+    # Add and commit to the database
+    db.add(new_request)
+    db.commit()
+    db.refresh(new_request)
+
+    # Log the saved message to confirm it's in the database
+    print(f"Saved message from chat {chat_id} to DB.")
+
+    # Generate a response based on the message content
+    response = handle_response(text)
+
+    # Send a reply to the user
     await update.message.reply_text(response)
 
 
