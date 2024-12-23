@@ -56,14 +56,19 @@ def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ):
     try:
+        # Decode the token and extract username
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+
+        # Validate token and username
         if username is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+        # Fetch user from database
         user = db.query(User).filter(User.username == username).first()
         if user is None:
             raise HTTPException(
@@ -71,7 +76,10 @@ def get_current_user(
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
         return user
+
+    # Handle token validation errors
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -81,7 +89,9 @@ def get_current_user(
 
 
 def verify_role(user: User, role_name: str):
+    # Check if user's role matches the required role
     if user.role.name != role_name:
+        # Raise an exception if roles do not match
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied for {role_name} role",
@@ -90,14 +100,17 @@ def verify_role(user: User, role_name: str):
 
 # Utility functions
 def verify_password(plain_password, hashed_password):
+    # Verify if the plain password matches the hashed password
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def hash_password(plain_password):
+    # Hash the plain password for secure storage
     return pwd_context.hash(plain_password)
 
 
 def authenticate_user(db, username: str, password: str):
+    # Fetch user by username and verify the password
     user = db.query(User).filter(User.username == username).first()
     if user and verify_password(password, user.hashed_password):
         return user
@@ -105,6 +118,7 @@ def authenticate_user(db, username: str, password: str):
 
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
+    # Create and encode an access token with optional expiration time
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -114,13 +128,14 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-# Create user in the database function
 def create_user_in_db(
     db: Session, username: str, password: str, role_name: str
 ):
+    # Hash password and create a new user with a specific role in the database
     hashed_password = hash_password(password)
     user_role = db.query(Role).filter(Role.name == role_name).first()
     if not user_role:
+        # If role doesn't exist, create it
         user_role = Role(name=role_name)
         db.add(user_role)
         db.commit()
@@ -166,17 +181,25 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
+    # Authenticate user using provided username and password
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        # Raise error if credentials are invalid
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Set expiration time for access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    # Create access token for authenticated user
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+
+    # Return the access token and token type
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -245,19 +268,26 @@ async def get_requests(
 
 @app.post("/requests")
 async def create_request(
-    request: RequestCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    request: RequestCreate,  # Accepts request data (bottoken, chatid, message)
+    db: Session = Depends(get_db),  # Database session dependency
+    current_user: User = Depends(
+        get_current_user
+    ),  # Gets the current authenticated user
 ):
+    # Create a new request record in the database with provided data
     new_request = Request(
         bottoken=request.bottoken,
         chatid=request.chatid,
         message=request.message,
-        user_id=current_user.id,  # Attach the current user
+        user_id=current_user.id,  # Associates request with the current user
     )
+
+    # Add the new request to the session and commit to save it in the database
     db.add(new_request)
     db.commit()
-    db.refresh(new_request)
+    db.refresh(new_request)  # Refresh the object to get the updated values
+
+    # Return success message after creating the request
     return {"message": "Request created"}
 
 
