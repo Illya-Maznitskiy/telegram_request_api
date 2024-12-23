@@ -70,6 +70,42 @@ uvicorn main:app --reload
 You can check and test the endpoints with URL [http://127.0.0.1:8000/docs/](http://127.0.0.1:8000/docs/)
 
 
+## Authorization and Authentication
+
+To use the API, visit [http://127.0.0.1:8000/docs/](http://127.0.0.1:8000/docs/) and follow these steps:
+
+1. **Create a user**:  
+   Send a `POST` request to the `/users` endpoint with your username, password, and role_name.  
+   Choose one of the following role names:  
+   - **Admin**  
+   - **Manager**  
+   - **User**  
+
+  
+
+2. **Get a token**:  
+   Send a `POST` request to the `/token` endpoint with your username and password to receive a JWT token.  
+
+  
+
+3. **Use the token**:  
+   Use the [ModHeader](https://modheader.com/) extension to add the token to the `Authorization` header of your requests.  
+   - Set the **Name** to `Authorization`.  
+   - Set the **Value** to `Bearer your_token`.  
+
+
+
+Now you can access the protected endpoints!
+
+
 ## Screenshots:
-### Structure
-![](screenshots/.png)
+
+### Authorization and Authentication
+
+#### Add New User
+![Add New User](screenshots/add_user.png)
+#### Get Access Token
+![Get Access Token](screenshots/get_token.png)
+#### Use Token in ModHeader
+![Token ModHeader](screenshots/token_mod_header.png)
+
