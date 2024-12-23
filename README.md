@@ -176,3 +176,7 @@ Follow these steps to test the Telegram Bot requests:
 
 ### View Requests
 ![View Requests](screenshots/view_requests.png)
+
+
+## Database Structure
+![Database Structure](screenshots/db_structure.png)
