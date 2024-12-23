@@ -52,6 +52,42 @@ def get_db():
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def get_current_user(
+    db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        user = db.query(User).filter(User.username == username).first()
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return user
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def verify_role(user: User, role_name: str):
+    if user.role.name != role_name:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied for {role_name} role",
+        )
+
+
 # Utility functions
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -146,36 +182,83 @@ async def login(
 
 @app.post("/users", response_model=UserRead)
 async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    # Define allowed roles in lowercase
+    allowed_roles = ["admin", "manager", "user"]
+
+    # Validate role (case-insensitive)
+    role_lower = user.role_name.lower()
+    if role_lower not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role. Choose one of: "
+            f"{', '.join([role.capitalize() for role in allowed_roles])}",
+        )
+
+    # Check if username is already registered
     db_user = db.query(User).filter(User.username == user.username).first()
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered",
         )
+
+    # Create and return the new user
     new_user = create_user_in_db(
-        db, user.username, user.password, role_name=user.role_name
+        db, user.username, user.password, role_name=role_lower.capitalize()
     )
     return new_user
 
 
-@app.get("/requests", dependencies=[Depends(oauth2_scheme)])
-async def get_requests(db: Session = Depends(get_db)):
-    return {"message": "Role-based access control here"}
+@app.get("/requests")
+async def get_requests(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Admin: Return all requests
+    if current_user.role.name == "Admin":
+        return db.query(Request).all()
+
+    # Manager: Return requests from users managed by this manager
+    if current_user.role.name == "Manager":
+        # Filter by `managed_user_ids` (users under the manager)
+        managed_users = (
+            db.query(User.id).filter(User.manager_id == current_user.id).all()
+        )
+        managed_user_ids = [user[0] for user in managed_users]
+        return (
+            db.query(Request)
+            .filter(Request.user_id.in_(managed_user_ids))
+            .all()
+        )
+
+    # User: Return only their own requests
+    if current_user.role.name == "User":
+        return (
+            db.query(Request).filter(Request.user_id == current_user.id).all()
+        )
+
+    # Default: Access denied
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+    )
 
 
-@app.post("/requests", dependencies=[Depends(oauth2_scheme)])
+@app.post("/requests")
 async def create_request(
-    request: RequestCreate, db: Session = Depends(get_db)
+    request: RequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     new_request = Request(
         bottoken=request.bottoken,
         chatid=request.chatid,
         message=request.message,
+        user_id=current_user.id,  # Attach the current user
     )
     db.add(new_request)
     db.commit()
     db.refresh(new_request)
-    return {"message": "Request received and processed"}
+    return {"message": "Request created"}
 
 
 # Telegram Bot Functions
