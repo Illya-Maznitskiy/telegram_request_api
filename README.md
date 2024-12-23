@@ -8,6 +8,7 @@ This project is FastAPI service powered by PostgreSQL, featuring role-based acce
 ## Technologies Used
 - Python
 - FastAPI
+- Telegram Bot
 - PostgreSQL
 
 
@@ -52,7 +53,7 @@ GRANT ALL PRIVILEGES ON DATABASE fastapi_project_db TO admin_user;
 ```
 
 
-# Migrations
+## Migrations
 Create and apply migrations with commands:
 ```bash
 alembic revision --autogenerate -m "Initial migration"
@@ -91,21 +92,57 @@ To use the API, visit [http://127.0.0.1:8000/docs/](http://127.0.0.1:8000/docs/)
 3. **Use the token**:  
    Use the [ModHeader](https://modheader.com/) extension to add the token to the `Authorization` header of your requests.  
    - Set the **Name** to `Authorization`.  
-   - Set the **Value** to `Bearer your_token`.  
-
-
+   - Set the **Value** to `Bearer your_token`.
 
 Now you can access the protected endpoints!
 
 
-## Screenshots:
+## Telegram Chat Setup
 
-### Authorization and Authentication
+This section explains how to set up and use Telegram API in your project.
 
-#### Add New User
+1. **Create a Telegram Bot with Token:**
+   - Open Telegram and search for **BotFather**.
+   - Start a conversation with BotFather and type `/newbot`.
+   - Follow the prompts to create a new bot. BotFather will provide you a **bot token**.
+
+  
+
+2. **Get Chat ID:**
+   - Send a message to your new bot.
+   - Visit `https://api.telegram.org/bot<your-bot-token>/getUpdates` (replace `<your-bot-token>` with the token you got).
+   - Find your **chat ID** in the response.
+
+  
+
+3. **Add Token to the Project:**
+   - In your project, add the **bot token** to the `.env` file (create it with [sample.env](./sample.env)).
+
+
+Now you're ready to interact with the Telegram API using your bot in the FastAPI service!
+
+
+# Screenshots:
+
+## Authorization and Authentication
+
+### Add New User
 ![Add New User](screenshots/add_user.png)
-#### Get Access Token
+
+### Get Access Token
 ![Get Access Token](screenshots/get_token.png)
-#### Use Token in ModHeader
+
+### Use Token in ModHeader
 ![Token ModHeader](screenshots/token_mod_header.png)
 
+
+## Telegram Chat Setup
+
+### Create a Telegram Bot
+![Create Bot](screenshots/create_bot.png)
+
+### Get Chat ID
+![Get Chat ID](screenshots/get_chat_id.png)
+
+### Add Token to Project
+![Add Token](screenshots/add_token.png)
